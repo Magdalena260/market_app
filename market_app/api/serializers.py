@@ -59,20 +59,25 @@ class MarketSerializer(serializers.Serializer):
 class SellerDetailSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(max_length=255)
-    contact = serializers.CharField()
+    contact_info = serializers.CharField()
     market = MarketSerializer(many=True, read_only=True)
-
+    
 
 class SellerCreateSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(max_length=255)
-    contact = serializers.CharField()
+    contact_info = serializers.CharField()
+    markets = serializers.ListField(child=serializers.IntegerField(), write_only=True)
+
+    def validate_markets(self, value):
+        markets = Market.objects.filter(id__in=value)
+        if len(markets) !=len(value):
+            raise serializers.ValidationError({"message": "passt nicht min ids"})
+        return value
+
 
     def create(self, validated_data):
-        return Seller.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        instance.name = validated_data.get('name', instance.name)
-        instance.contact = validated_data.get('contact', instance.contact)
-        instance.save()
-        return instance
+        market_ids = validated_data.pop('markets')
+        seller = Seller.objects.create(**validated_data)
+        markets = Market.objects.filter(id__in=market_ids)
+        seller.markets.set(markets)
+        return seller

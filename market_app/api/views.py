@@ -8,7 +8,6 @@ from .serializers import (
 )
 from market_app.models import Market, Seller
 
-
 @api_view(['GET', 'POST'])
 def markets_view(request):
 
