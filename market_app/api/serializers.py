@@ -1,6 +1,11 @@
 from rest_framework import serializers
-from market_app.models import Market, Seller
+from market_app.models import Market, Seller, Product
 
+
+class MarketSerializer(serializers.ModelSerializer):
+    class Meta:
+        model: Market
+        exclude = []
 
 def validate_no_x(value):
     errors = []
@@ -55,12 +60,30 @@ class MarketSerializer(serializers.Serializer):
             raise serializers.ValidationError('no X in location')
         return value
 
+    class MarketSerrializer(serializers.ModelSerializer):
+       class Meta:
+        model = Market
+       fields = '__all__'
+
+       def validate_name(self,value):
+        errors = []
+
+        if 'X' in value:
+            errors.append('no X in location')
+        if 'Y' in value:
+            errors.append('no Y in location')
+
+            if errors:
+                raise serializers.ValidationError(errors)
+
+            return value
 
 class SellerDetailSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(max_length=255)
     contact_info = serializers.CharField()
-    market = MarketSerializer(many=True, read_only=True)
+    #markets = MarketSerializer(many=True, read_only=True)
+    markets = serializers.StringRelatedField(many=True)
     
 
 class SellerCreateSerializer(serializers.Serializer):
@@ -81,3 +104,31 @@ class SellerCreateSerializer(serializers.Serializer):
         markets = Market.objects.filter(id__in=market_ids)
         seller.markets.set(markets)
         return seller
+
+
+class ProductSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(max_length=255)
+    description = serializers.CharField()
+    price = serializers.DecimalField(max_digits=50, decimal_places=2)
+    market = serializers.PrimaryKeyRelatedField(
+        queryset=Market.objects.all()
+    )
+    seller = serializers.PrimaryKeyRelatedField(
+        queryset=Seller.objects.all()
+    )
+
+    def create(self, validated_data):
+        return Product.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.description = validated_data.get(
+            'description',
+            instance.description
+        )
+        instance.price = validated_data.get('price', instance.price)
+        instance.market = validated_data.get('market', instance.market)
+        instance.seller = validated_data.get('seller', instance.seller)
+        instance.save()
+        return instance
